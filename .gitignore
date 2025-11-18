@@ -1,0 +1,66 @@
+# -----------------------------
+# Python bytecode & cache
+# -----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# -----------------------------
+# Virtual environments
+# -----------------------------
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# -----------------------------
+# Build / packaging
+# -----------------------------
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# -----------------------------
+# Test & tooling caches
+# -----------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# -----------------------------
+# IDE / Editor
+# -----------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# -----------------------------
+# OS-specific junk
+# -----------------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# Logs (runtime output)
+# -----------------------------
+logs/**
+!logs/.gitkeep
+
+# -----------------------------
+# Config overrides (optional)
+# -----------------------------
+config/*.local.*
