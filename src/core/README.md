@@ -1,18 +1,18 @@
 # CORE MODULE – Crypto • Encoding • Transactions • State
 
 ## 1. Mục tiêu
-Module này cung cấp toàn bộ “lõi” của hệ thống blockchain:
-- Mã hóa determinisitc (canonical encoding)
-- Chữ ký và xác minh chữ ký (Ed25519 hoặc secp256k1)
-- Cấu trúc Transaction + SignedTransaction
-- Mô hình State dạng key–value và hàm apply_tx()
-- Tạo state commitment (SHA-256/BLAKE2)
+Module này xây dựng toàn bộ phần “lõi” của blockchain:
+- Deterministic encoding (canonical JSON)
+- Chữ ký Ed25519/secp256k1 + domain separation
+- Transaction struct (TxBody + SignedTx)
+- State key–value và hàm apply_tx()
+- State commitment (SHA-256/BLAKE2)
 
-Tất cả module khác (block, consensus, network) **không được tự ý định nghĩa lại** encoding/hashing/signing.
+Các module khác phải sử dụng logic tại đây, **không tự viết lại**.
 
 ---
 
-## 2. Thành phần trong thư mục
+## 2. Cấu trúc files
 core/
 ├─ encoding.py
 ├─ crypto_layer.py
@@ -22,60 +22,39 @@ core/
 
 ---
 
-## 3. Nhiệm vụ từng file
+## 3. Mô tả từng file
 
 ### `encoding.py`
-- Cung cấp `canonical_json(obj) -> bytes`
-- Bảo đảm:
-  - sort key
-  - không space thừa
-  - UTF-8 encoding
-- Dùng cho mọi dữ liệu trước khi hash hoặc ký.
-
----
+- Hàm: `canonical_json(obj) -> bytes`
+- Yêu cầu:
+  - sắp xếp key (sort_keys)
+  - không thêm space
+  - UTF-8
+- Áp dụng cho hash/sign để đảm bảo deterministic.
 
 ### `crypto_layer.py`
-- Sinh keypair validator/participant
-- Hàm ký:
-  - `sign_struct(ctx, keypair, obj_dict)`
-- Hàm verify:
-  - `verify_struct(ctx, pubkey, obj_dict, signature)`
+- KeyPair (generate)
+- sign_struct(ctx, keypair, obj)
+- verify_struct(ctx, pubkey, obj, signature)
 - Domain separation:
-  - `TX:chain_id`
-  - `HEADER:chain_id`
-  - `VOTE:chain_id`
-- Hàm hash:
-  - `sha256(data)`
-  - `sha256_hex(data)`
-
----
+  - TX:chain_id
+  - HEADER:chain_id
+  - VOTE:chain_id
+- SHA-256 / BLAKE2
 
 ### `types_tx.py`
-- `TxBody(sender_pubkey_hex, key, value)`
-- `SignedTx`:
-  - `.sign(keypair, key, value)`
-  - `.verify()`
-- Dữ liệu logic được ký **không** bao gồm signature.
-
----
+- TxBody(sender_pubkey_hex, key, value)
+- SignedTx(sign, verify)
+- Không ký signature khi tạo payload để hash.
 
 ### `state.py`
-- State dạng `Dict[str, str]`
-- `apply_tx(tx)`:
-  - verify chữ ký
-  - kiểm tra quyền sở hữu key
-  - trả về state mới (immutable)
-- `commitment()`:
-  - SHA-256(canonical_json(state))
+- State dạng dict
+- apply_tx(tx) → state mới
+- Kiểm chữ ký + ownership rule
+- commitment() → state_hash
 
 ---
 
-## 4. Trách nhiệm người phụ trách module
-- Đảm bảo mọi encode/hash/sign đều deterministic.
-- Đảm bảo transaction xử lý đúng quy tắc ownership.
-- Đảm bảo state áp dụng tx giống nhau trên mọi node.
+## 4. Test module
+pytest tests/test_core.py
 
----
-
-## 5. Cách test nhanh
-pytest tests/test_core_crypto_state.py

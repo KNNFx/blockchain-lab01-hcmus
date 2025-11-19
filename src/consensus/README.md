@@ -1,15 +1,15 @@
-# CONSENSUS MODULE – Prevote & Precommit Finality
+# CONSENSUS MODULE – Prevote • Precommit • Finality
 
 ## 1. Mục tiêu
-Triển khai cơ chế đồng thuận hai pha:
+Triển khai đồng thuận 2-phase như yêu cầu:
 - Prevote
 - Precommit
 - Finalize block khi đạt strict majority
-- Đảm bảo Safety và Liveness
+- Bảo đảm Safety & Liveness
 
 ---
 
-## 2. Thành phần thư mục
+## 2. Cấu trúc thư mục
 consensus/
 ├─ vote.py
 └─ consensus.py
@@ -17,35 +17,27 @@ consensus/
 
 ---
 
-## 3. Nhiệm vụ từng file
+## 3. File chi tiết
 
 ### `vote.py`
-- Struct:
-  - `Vote(height, block_hash, phase, validator_pubkey_hex, signature)`
-- Hàm:
-  - `build_vote(keypair, height, block_hash, phase)`
-  - `verify_vote(vote)`
-
----
+- Vote struct:
+  - height
+  - block_hash
+  - phase (PREVOTE / PRECOMMIT)
+  - validator_pubkey_hex
+  - signature
+- build_vote()
+- verify_vote()
 
 ### `consensus.py`
-- Giữ vote pool cho từng height
-- Hàm:
-  - `on_proposed_block(block)`
-  - `on_receive_vote(vote)`
-  - Phát ra prevote / precommit khi đủ điều kiện
-  - Phát hiện khi block đạt majority → finalize
-- Callback:
-  - `on_block_finalized(block_hash, height)`
+- VotePool cho từng height
+- on_receive_block()
+- on_receive_vote()
+- Điều kiện phát prevote → precommit
+- Điều kiện finalize block
+- Callback: on_block_finalized()
 
 ---
 
-## 4. Trách nhiệm người phụ trách module
-- Đảm bảo tuyệt đối không thể finalize 2 block khác nhau cùng height.
-- Luật prevote → precommit chính xác.
-- Xác minh chữ ký vote bằng module core.
-
----
-
-## 5. Test nhanh
+## 4. Test module
 pytest tests/test_consensus.py

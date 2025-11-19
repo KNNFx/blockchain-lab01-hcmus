@@ -1,56 +1,48 @@
 # BLOCKLAYER MODULE – Block • BlockHeader • Validation • Ledger
 
 ## 1. Mục tiêu
-Module này định nghĩa cấu trúc block và thực thi:
-- Tạo block mới
-- Validate block nhận được
-- Lưu chuỗi block và state vào Ledger
-- Tính block hash và state hash nhất quán
+Module này định nghĩa:
+- BlockHeader
+- Block
+- Block creation (build_block)
+- Block validation (validate_block)
+- Ledger quản lý block & state theo height
+
+Dựa hoàn toàn vào module `core`.
 
 ---
 
-## 2. Thành phần thư mục
+## 2. Cấu trúc thư mục
 blocklayer/
 ├─ block.py
 └─ ledger.py
 
 ---
 
-## 3. Nhiệm vụ từng file
+## 3. File chi tiết
 
 ### `block.py`
 - Struct:
-  - `BlockHeader(height, parent_hash, state_hash, proposer_pubkey_hex)`
-  - `Block(header, txs, header_signature)`
+  - BlockHeader(height, parent_hash, state_hash, proposer_pubkey_hex)
+  - Block(header, txs, header_signature)
 - Hàm:
-  - `build_block(parent_block, parent_state, txs, proposer_keypair)`
-  - `validate_block(block, parent_block, parent_state)`
+  - build_block(parent_block, parent_state, txs, keypair)
+  - validate_block(block, parent_block, parent_state)
 - Yêu cầu:
-  - Re-execute txs bằng State của module core
-  - So khớp `state_hash`
-  - Verify chữ ký header
-  - Hash block từ canonical encoding
-
----
+  - Re-execute txs bằng State của core
+  - verify chữ ký header
+  - block_hash = sha256(canonical_json(header))
 
 ### `ledger.py`
-- Lưu trữ:
-  - block theo height
-  - state sau mỗi block
+- Lưu block theo height
+- Lưu state sau mỗi block
 - Hàm:
-  - `add_block(block, state_after)`
-  - `get_block(height)`
-  - `get_state(height)`
-  - `latest_finalized()`
+  - add_block(block, state_after)
+  - get_block(height)
+  - get_state(height)
+  - latest_finalized()
 
 ---
 
-## 4. Trách nhiệm người phụ trách module
-- Đảm bảo block hợp lệ tuyệt đối.
-- Đảm bảo build/validate sử dụng đúng hàm từ module core.
-- Không triển khai logic consensus ở đây.
-
----
-
-## 5. Test nhanh
-pytest tests/test_block_layer.py
+## 4. Test module
+pytest tests/test_blocklayer.py
