@@ -1,7 +1,9 @@
 # CORE MODULE – Crypto • Encoding • Transactions • State
 
 ## 1. Mục tiêu
+
 Module này xây dựng toàn bộ phần “lõi” của blockchain:
+
 - Deterministic encoding (canonical JSON)
 - Chữ ký Ed25519/secp256k1 + domain separation
 - Transaction struct (TxBody + SignedTx)
@@ -13,18 +15,19 @@ Các module khác phải sử dụng logic tại đây, **không tự viết l�
 ---
 
 ## 2. Cấu trúc files
+
 core/
 ├─ encoding.py
 ├─ crypto_layer.py
 ├─ types_tx.py
 └─ state.py
 
-
 ---
 
 ## 3. Mô tả từng file
 
 ### `encoding.py`
+
 - Hàm: `canonical_json(obj) -> bytes`
 - Yêu cầu:
   - sắp xếp key (sort_keys)
@@ -33,6 +36,7 @@ core/
 - Áp dụng cho hash/sign để đảm bảo deterministic.
 
 ### `crypto_layer.py`
+
 - KeyPair (generate)
 - sign_struct(ctx, keypair, obj)
 - verify_struct(ctx, pubkey, obj, signature)
@@ -43,11 +47,13 @@ core/
 - SHA-256 / BLAKE2
 
 ### `types_tx.py`
+
 - TxBody(sender_pubkey_hex, key, value)
 - SignedTx(sign, verify)
 - Không ký signature khi tạo payload để hash.
 
 ### `state.py`
+
 - State dạng dict
 - apply_tx(tx) → state mới
 - Kiểm chữ ký + ownership rule
@@ -56,5 +62,5 @@ core/
 ---
 
 ## 4. Test module
-pytest tests/test_core.py
 
+pytest -v
