@@ -1,0 +1,3 @@
+pynacl==1.6.1
+canonicaljson==2.0.0
+pytest==9.0.1
