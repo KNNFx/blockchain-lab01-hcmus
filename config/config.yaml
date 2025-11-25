@@ -1,0 +1,3 @@
+simulation:
+  num_nodes: 4
+  max_blocks: 5
