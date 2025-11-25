@@ -115,7 +115,7 @@ class ConsensusEngine:
         self, 
         validator_keypair,
         total_validators: int,
-        on_finalize_callback: Optional[Callable] = None
+        on_finalize_callback: Optional[Callable] = None # Dùng để callback hàm lưu block vào ledge  sau khi finalize
     ):
         self.validator_keypair = validator_keypair
         self.total_validators = total_validators
@@ -149,19 +149,12 @@ class ConsensusEngine:
         return self.vote_pools[key]
     
     def _get_block_hash(self, block) -> str:
-        """Lấy hash của block (hỗ trợ cả dict và object Block)."""
-        if isinstance(block, dict):
-            return block.get("hash", "")
-        else:
-            # Dành cho object Block thật (khi blocklayer sẵn sàng)
-            return block.compute_hash() if hasattr(block, "compute_hash") else str(block)
+        """Lấy hash của block."""
+        return block.block_hash()
     
     def _get_block_height(self, block) -> int:
         """Lấy height của block."""
-        if isinstance(block, dict):
-            return block.get("height", 0)
-        else:
-            return block.header.height if hasattr(block, "header") else 0
+        return block.header.height
     
     def on_receive_block(self, block) -> bool:
         """

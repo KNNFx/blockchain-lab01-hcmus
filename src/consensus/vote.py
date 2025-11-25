@@ -13,7 +13,7 @@ PHASE_PRECOMMIT = "PRECOMMIT"
 @dataclass
 class VoteBody:
     """
-    Cấu trúc phiếu bầu chưa ký (unsigned), chứa thông tin cốt lõi.
+    Cấu trúc VoteBody (unsigned), chứa thông tin cốt lõi.
     """
     height: int
     round: int
@@ -28,8 +28,7 @@ class VoteBody:
 @dataclass
 class Vote:
     """
-    Phiếu bầu đã ký (signed).
-    Bao gồm VoteBody cộng với chữ ký và thông tin xác thực.
+    Signed Vote = VoteBody + signature + pubkey + context
     """
     height: int
     round: int
@@ -43,7 +42,7 @@ class Vote:
     @staticmethod
     def create(body: VoteBody, keypair: KeyPair) -> "Vote":
         """
-        Tạo một phiếu bầu đã ký từ VoteBody sử dụng keypair của validator.
+        Tạo một signed vote từ VoteBody sử dụng keypair của validator.
         """
         payload = body.to_dict()
         # Ký vào struct với prefix "VOTE:" để tránh replay attack
@@ -52,7 +51,7 @@ class Vote:
 
     def verify(self) -> bool:
         """
-        Kiểm tra chữ ký của phiếu bầu có hợp lệ không.
+        Kiểm tra chữ ký của signed vote có hợp lệ không.
         """
         return verify_struct("VOTE:", asdict(self))
     
@@ -72,7 +71,7 @@ def build_vote(
     keypair: KeyPair
 ) -> Vote:
     """
-    Hàm tiện ích để tạo và ký phiếu bầu trong một bước.
+    Hàm tiện ích để tạo và ký signed vote từ VoteBody.
     """
     body = VoteBody(
         height=height,
@@ -86,7 +85,7 @@ def build_vote(
 
 def verify_vote(vote: Vote) -> bool:
     """
-    Xác thực phiếu bầu: kiểm tra chữ ký và tính nhất quán dữ liệu.
+    Xác thực signed vote: kiểm tra chữ ký và tính nhất quán dữ liệu.
     """
     # 1. Check chữ ký
     if not vote.verify():
