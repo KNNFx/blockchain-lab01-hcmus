@@ -1,4 +1,4 @@
-# network.py
+# src/network/network.py
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -34,9 +34,8 @@ class ScheduledDelivery:
 class Node(Protocol):
     """
     Interface đơn giản cho Node:
-    Bất kỳ object nào có .receive(message: Message) đều được.
+    chỉ cần có .node_id và .receive(message)
     """
-
     node_id: str
 
     def receive(self, message: Message) -> None:
@@ -46,10 +45,11 @@ class Node(Protocol):
 class Network:
     """
     Network layer đơn giản:
-    - Event queue bằng priority queue.
+    - Event queue (priority queue) cho các lần deliver.
     - Simulate delay / drop / duplicate / reorder.
     - Throttle outbound rate (min interval giữa 2 lần gửi của 1 node).
-    - Log toàn bộ event bằng JSON lines (deterministic).
+    - Block / unblock peer: chặn tạm thời 1 hướng gửi (src -> dst).
+    - Ghi log toàn bộ event bằng JSON lines (deterministic).
     """
 
     def __init__(
@@ -87,6 +87,9 @@ class Network:
         self._next_seq: int = 0
         self._last_send_time: Dict[str, float] = {}  # node_id -> last send time
 
+        # tập các cặp (src, dst) đang bị block
+        self._blocked_pairs: set[tuple[str, str]] = set()
+
     # ---------- quản lý node ----------
 
     def add_node(self, node: Node) -> None:
@@ -107,7 +110,7 @@ class Network:
         )
         heapq.heappush(self._queue, sd)
 
-        # log SCHEDULE
+        # log SCHEDULE_DELIVER
         self._logger.log_event(
             sim_time=deliver_time,
             node_id=msg.to_id,
@@ -121,6 +124,46 @@ class Network:
             },
         )
 
+    # ---------- block / unblock peer ----------
+
+    def block_peer(self, src: str, dst: str, now: float) -> None:
+        """
+        Block hướng gửi src -> dst.
+        Mọi message từ src gửi tới dst sau thời điểm này sẽ bị chặn.
+        """
+        pair = (src, dst)
+        if pair not in self._blocked_pairs:
+            self._blocked_pairs.add(pair)
+
+        self._logger.log_event(
+            sim_time=now,
+            node_id=dst,
+            event="BLOCK_PEER",
+            height=None,
+            msg_id=None,
+            extra={"from": src, "to": dst},
+        )
+
+    def unblock_peer(self, src: str, dst: str, now: float) -> None:
+        """
+        Unblock hướng src -> dst.
+        """
+        pair = (src, dst)
+        if pair in self._blocked_pairs:
+            self._blocked_pairs.remove(pair)
+
+        self._logger.log_event(
+            sim_time=now,
+            node_id=dst,
+            event="UNBLOCK_PEER",
+            height=None,
+            msg_id=None,
+            extra={"from": src, "to": dst},
+        )
+
+    def is_blocked(self, src: str, dst: str) -> bool:
+        return (src, dst) in self._blocked_pairs
+
     # ---------- API chính ----------
 
     def send(self, msg: Message, now: float) -> None:
@@ -128,11 +171,13 @@ class Network:
         Gửi message từ msg.from_id tới msg.to_id tại thời điểm 'now' (simulated).
         Thực tế nó sẽ:
         - áp dụng throttle
+        - nếu cặp (from, to) đang bị block → log & bỏ
         - random drop/duplicate
         - random delay → xếp lịch deliver vào priority queue
         """
 
         sender = msg.from_id
+        receiver = msg.to_id
 
         # throttle outbound rate
         last_t = self._last_send_time.get(sender, -1e18)
@@ -140,7 +185,7 @@ class Network:
         send_time = max(now, earliest)
         self._last_send_time[sender] = send_time
 
-        # log SEND event (tại thời điểm send_time)
+        # log SEND event
         self._logger.log_event(
             sim_time=send_time,
             node_id=sender,
@@ -148,11 +193,27 @@ class Network:
             height=msg.height,
             msg_id=msg.msg_id,
             extra={
-                "from": msg.from_id,
-                "to": msg.to_id,
+                "from": sender,
+                "to": receiver,
                 "msg_type": msg.msg_type.name,
             },
         )
+
+        # nếu đang bị block → log và dừng
+        if self.is_blocked(sender, receiver):
+            self._logger.log_event(
+                sim_time=send_time,
+                node_id=sender,
+                event="SEND_BLOCKED",
+                height=msg.height,
+                msg_id=msg.msg_id,
+                extra={
+                    "from": sender,
+                    "to": receiver,
+                    "reason": "blocked_peer",
+                },
+            )
+            return
 
         # random drop
         if self._rng.random() < self._drop_prob:
@@ -163,8 +224,8 @@ class Network:
                 height=msg.height,
                 msg_id=msg.msg_id,
                 extra={
-                    "from": msg.from_id,
-                    "to": msg.to_id,
+                    "from": sender,
+                    "to": receiver,
                     "reason": "random_drop",
                 },
             )
@@ -189,8 +250,8 @@ class Network:
                 height=msg.height,
                 msg_id=msg.msg_id,
                 extra={
-                    "from": msg.from_id,
-                    "to": msg.to_id,
+                    "from": sender,
+                    "to": receiver,
                 },
             )
 
@@ -201,8 +262,8 @@ class Network:
     def deliver_next(self) -> Optional[float]:
         """
         Lấy event sớm nhất trong queue và deliver message cho node nhận.
-        - gọi Node.receive(message)
-        - log sự kiện DELIVER
+        - nếu cặp (from, to) bị block tại thời điểm deliver → log & drop
+        - ngược lại: log DELIVER rồi gọi Node.receive(message)
         Trả về simulated_time của lần deliver này, hoặc None nếu queue rỗng.
         """
         if not self._queue:
@@ -211,37 +272,54 @@ class Network:
         sd = heapq.heappop(self._queue)
         msg = sd.message
         t = sd.deliver_time
+        sender = msg.from_id
+        receiver = msg.to_id
 
-        node = self._nodes.get(msg.to_id)
-        if node is None:
-            # node không tồn tại → log rồi bỏ qua
+        # nếu cặp đang bị block tại thời điểm deliver → drop
+        if self.is_blocked(sender, receiver):
             self._logger.log_event(
                 sim_time=t,
-                node_id=msg.to_id,
-                event="DELIVER_DROPPED_NO_NODE",
+                node_id=receiver,
+                event="DELIVER_BLOCKED",
                 height=msg.height,
                 msg_id=msg.msg_id,
                 extra={
-                    "from": msg.from_id,
-                    "to": msg.to_id,
+                    "from": sender,
+                    "to": receiver,
+                    "reason": "blocked_peer",
                 },
             )
             return t
 
-        # log DELIVER trước khi gọi node.receive (để deterministic)
+        node = self._nodes.get(receiver)
+        if node is None:
+            # node không tồn tại → log rồi bỏ qua
+            self._logger.log_event(
+                sim_time=t,
+                node_id=receiver,
+                event="DELIVER_DROPPED_NO_NODE",
+                height=msg.height,
+                msg_id=msg.msg_id,
+                extra={
+                    "from": sender,
+                    "to": receiver,
+                },
+            )
+            return t
+
+        # log DELIVER trước khi gọi node.receive (deterministic)
         self._logger.log_event(
             sim_time=t,
-            node_id=msg.to_id,
+            node_id=receiver,
             event="DELIVER",
             height=msg.height,
             msg_id=msg.msg_id,
             extra={
-                "from": msg.from_id,
-                "to": msg.to_id,
+                "from": sender,
+                "to": receiver,
                 "msg_type": msg.msg_type.name,
             },
         )
 
-        # thực sự giao message cho node
         node.receive(msg)
         return t
