@@ -8,14 +8,18 @@ class Node:
         self.core = MockCore()
         self.blocklayer = MockBlockLayer()
         self.consensus = MockConsensus()
+<<<<<<< HEAD
         #################
         self.mempool = []
         self.network = network
         #################
+=======
+>>>>>>> main
         network.register(self)
 
     def receive(self, message):
         print(f"[Node {self.id}] Received: {message}")
+<<<<<<< HEAD
         ##############################################
         msg_type = message.get("type")
         data = message.get("data")
@@ -51,3 +55,5 @@ class Node:
         if self.consensus.propose_block(block):
             self.network.broadcast(self, {"type": "BLOCK", "data": block})
             self.mempool = [] # Clear mempool after proposal (mock logic)
+=======
+>>>>>>> main
