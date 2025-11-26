@@ -1,9 +1,12 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 class Simulator:
     def __init__(self, network, nodes):
         self.network = network
         self.nodes = nodes
 =======
+=======
+>>>>>>> de6e195 (Revert "update")
 import yaml
 
 class Simulator:
@@ -16,14 +19,20 @@ class Simulator:
         with open(path, "r") as f:
             self.config = yaml.safe_load(f)
         print(f"Loaded config: {self.config}")
+<<<<<<< HEAD
 >>>>>>> 02b91f1 (update)
+=======
+>>>>>>> de6e195 (Revert "update")
 
     def tick(self):
         # Mock tick: broadcast a test message from first node
         if self.nodes:
             self.network.broadcast(self.nodes[0], {"type": "TICK", "data": "simulation step"})
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> de6e195 (Revert "update")
 
     def run(self, max_steps=None):
         print("Starting simulation...")
@@ -46,4 +55,7 @@ class Simulator:
             if step >= limit:
                 print("Simulation ended (max steps reached).")
                 break
+<<<<<<< HEAD
 >>>>>>> 02b91f1 (update)
+=======
+>>>>>>> de6e195 (Revert "update")

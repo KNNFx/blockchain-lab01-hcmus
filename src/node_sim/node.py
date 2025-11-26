@@ -9,18 +9,27 @@ class Node:
         self.blocklayer = MockBlockLayer()
         self.consensus = MockConsensus()
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> de6e195 (Revert "update")
         #################
         self.mempool = []
         self.network = network
         #################
+<<<<<<< HEAD
 >>>>>>> 02b91f1 (update)
+=======
+>>>>>>> de6e195 (Revert "update")
         network.register(self)
 
     def receive(self, message):
         print(f"[Node {self.id}] Received: {message}")
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> de6e195 (Revert "update")
         ##############################################
         msg_type = message.get("type")
         data = message.get("data")
@@ -56,4 +65,7 @@ class Node:
         if self.consensus.propose_block(block):
             self.network.broadcast(self, {"type": "BLOCK", "data": block})
             self.mempool = [] # Clear mempool after proposal (mock logic)
+<<<<<<< HEAD
 >>>>>>> 02b91f1 (update)
+=======
+>>>>>>> de6e195 (Revert "update")
