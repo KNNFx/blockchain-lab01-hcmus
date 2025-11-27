@@ -1,8 +1,7 @@
-gitfrom io import StringIO
+from io import StringIO
 import json
 
 # import đúng theo cấu trúc project:
-# C:\blockchain-lab01-hcmus\src\network\...
 from network.messages import Message, MessageType
 from network.logging_utils import JsonLinesLogger
 from network.network import Network
@@ -91,3 +90,59 @@ def test_network_basic_send_and_deliver():
         # nếu có msg_id thì phải là 1
         if "msg_id" in obj:
             assert obj["msg_id"] == 1
+
+
+def test_block_and_unblock_peer():
+    """
+    Test block/unblock peer:
+    1) Block A -> B → gửi msg sẽ không deliver
+    2) Unblock → gửi msg → deliver OK
+    """
+
+    buf = StringIO()
+    logger = JsonLinesLogger(buf)
+
+    import random
+    rng = random.Random(99)
+
+    net = Network(
+        logger=logger,
+        rng=rng,
+        min_delay=0.0,
+        max_delay=0.0,
+        drop_prob=0.0,
+        dup_prob=0.0,
+    )
+
+    a = DummyNode("A")
+    b = DummyNode("B")
+    net.add_node(a)
+    net.add_node(b)
+
+    # message
+    msg = Message(
+        msg_id=2,
+        from_id="A",
+        to_id="B",
+        msg_type=MessageType.TX,
+        payload={"x": 88},
+        height=10,
+    )
+
+    # Block A → B
+    net.block_peer("A", "B", now=0.0)
+
+    # Gửi message → bị block → không deliver
+    net.send(msg, now=0.1)
+    assert not net.has_pending_events()
+    assert b.received == []
+
+    # Unblock
+    net.unblock_peer("A", "B", now=0.2)
+
+    # Gửi lần nữa → được deliver
+    net.send(msg, now=0.3)
+    assert net.has_pending_events()
+
+    net.deliver_next()
+    assert b.received == [2]

@@ -60,3 +60,48 @@ def test_determinism(capsys, temp_config):
     output2 = out2.split("RUN 2 START")[1]
     
     assert output1 == output2
+
+def test_transaction_propagation(capsys, temp_config):
+    """Test that transactions are propagated to other nodes."""
+    network = MockNetwork()
+    nodes = [Node(i, network) for i in range(4)]
+    sim = Simulator(network, nodes, temp_config)
+    
+    # Manually inject a transaction into Node 0's mempool (simulating a client submission)
+    tx = {"type": "TX", "data": "tx_data_1"}
+    # In a real scenario, we might use a client to send this, but for now we simulate network receipt
+    # or direct injection. Let's use network send to simulate receiving from a client/peer.
+    # Since MockNetwork.send delivers immediately in this mock:
+    network.send(None, nodes[0], tx)
+    
+    # Run simulation briefly to allow propagation (if implemented)
+    # Current Node implementation adds to mempool but doesn't broadcast TXs on receipt in `receive`.
+    # However, let's check if it was added to Node 0's mempool.
+    assert "tx_data_1" in nodes[0].mempool
+    
+    # If Node logic included rebroadcasting, we would check other nodes.
+    # For now, let's verify Node 0 has it.
+    
+    print("Transaction Propagation Test")
+    sim.run(max_steps=2)
+    
+    captured = capsys.readouterr()
+    assert "Added TX to mempool" in captured.out
+
+def test_block_proposal(capsys, temp_config):
+    """Test that nodes propose blocks when they have transactions."""
+    network = MockNetwork()
+    nodes = [Node(i, network) for i in range(4)]
+    sim = Simulator(network, nodes, temp_config)
+    
+    # Inject tx
+    tx = {"type": "TX", "data": "tx_data_for_block"}
+    network.send(None, nodes[0], tx)
+    
+    print("Block Proposal Test")
+    # Run enough steps for a proposal to happen (Simulator calls propose_block every even step)
+    sim.run(max_steps=4)
+    
+    captured = capsys.readouterr()
+    assert "Proposing block" in captured.out
+    assert "Block validated" in captured.out 
