@@ -39,6 +39,15 @@ class Block:
         hash_bytes = blake2b_hash(header_bytes)
         return binascii.hexlify(hash_bytes).decode()
 
+    def verify_signature(self) -> bool:
+        """Kiểm tra chữ ký header"""
+        signed_header_dict = self.header.to_dict()
+        signed_header_dict.update({
+            "signature": self.header_signature,
+            "pubkey": self.pubkey,
+            "context": self.context
+        })
+        return verify_struct("HEADER:", signed_header_dict)
 
 def build_block(
     parent_block: Optional[Block],
