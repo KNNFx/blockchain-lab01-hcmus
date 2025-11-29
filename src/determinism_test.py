@@ -4,12 +4,12 @@ import sys
 import filecmp
 import hashlib
 
-def run_simulation(output_file):
-    """Runs the simulation and writes stdout to output_file."""
-    print(f"Running simulation, outputting to {output_file}...")
+def run_simulation(output_file, seed=0):
+    """Runs the simulation with fixed seed and writes stdout to output_file."""
+    print(f"Running simulation with seed={seed}, outputting to {output_file}...")
     with open(output_file, "w") as f:
         result = subprocess.run(
-            [sys.executable, "src/main.py"],
+            [sys.executable, "src/main.py", "--mode", "simulator", "--seed", str(seed)],
             stdout=f,
             stderr=subprocess.PIPE,
             text=True,
@@ -48,12 +48,15 @@ def main():
     log2 = os.path.join(log_dir, "run_2.log")
     report_file = os.path.join(log_dir, "run_compare.txt")
 
-    # Run 1
-    if not run_simulation(log1):
+    # Fixed seed for reproducibility
+    SEED = 0
+
+    # Run 1 with seed
+    if not run_simulation(log1, seed=SEED):
         sys.exit(1)
 
-    # Run 2
-    if not run_simulation(log2):
+    # Run 2 with same seed
+    if not run_simulation(log2, seed=SEED):
         sys.exit(1)
 
     print("Comparing logs...")
