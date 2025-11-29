@@ -5,6 +5,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from consensus.vote import Vote, PHASE_PREVOTE, PHASE_PRECOMMIT, verify_vote, build_vote
+from blocklayer.block import validate_block
+from core.state import State
 
 
 class VotePool:
@@ -148,6 +150,9 @@ class ConsensusEngine:
         #Node's vote tracking
         self.my_prevote: Optional[str] = None
         self.my_precommit: Optional[str] = None
+        
+        #Parent tracking for validation
+        self.parent_state: Optional[State] = None
 
 
     def on_receive_block(self, block) -> Optional[Vote]:
@@ -174,11 +179,12 @@ class ConsensusEngine:
 
         #5. Nếu chưa prevote -> Validate và tạo Prevote
         if self.my_prevote is None:
-            is_valid = True
-            if self.block_validator:
-                is_valid = self.block_validator(block)
+            # Get parent block for validation
+            parent_block = self.get_latest_finalized()
+            # Use empty state if no parent (genesis case)
+            parent_state = self.parent_state if self.parent_state else State()
             
-            if is_valid:
+            if validate_block(block, parent_block, parent_state):
                 # Prevote logic with locking consideration
                 vote_for = None
                 
@@ -279,6 +285,12 @@ class ConsensusEngine:
         
         if self.on_finalize_callback:
             self.on_finalize_callback(block)
+        
+        # Update parent_state: apply block transactions to current state
+        if self.parent_state is None:
+            self.parent_state = State()
+        for tx in block.txs:
+            self.parent_state.apply_tx(tx)
         
         # Reset state cho height mới và thu thập votes từ buffered blocks/votes
         return self._advance_to_next_height(height + 1)

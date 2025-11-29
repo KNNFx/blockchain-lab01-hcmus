@@ -49,7 +49,6 @@ class Block:
         })
         return verify_struct("HEADER:", signed_header_dict)
 
-
 def build_block(
     parent_block: Optional[Block],
     parent_state: State,
