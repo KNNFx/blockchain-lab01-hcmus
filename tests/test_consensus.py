@@ -431,4 +431,4 @@ class TestConsensus(unittest.TestCase):
         print("[PASS] No prevote for old block")
 
 if __name__ == "__main__":
-    unittest.main()
+    pytest.main([__file__])
