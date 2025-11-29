@@ -15,7 +15,7 @@ class DummyNode:
         self.node_id = node_id
         self.received = []  # lưu msg_id đã nhận
 
-    def receive(self, message: Message) -> None:
+    def receive(self, message: Message, sim_time: float) -> None:
         self.received.append(message.msg_id)
 
 
