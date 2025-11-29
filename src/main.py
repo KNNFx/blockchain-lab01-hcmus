@@ -1,25 +1,18 @@
-from mock.mock_network import MockNetwork
-from node_sim.node import Node
+import sys
+import os
+
+# Add src to path
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
+
 from node_sim.simulator import Simulator
 
-import sys
-
 def main():
-    # Default config path
-    config_path = "config/config.yaml"
+    config_path = "config/default_config.yaml"
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
 
-    # Khởi tạo network mock
-    network = MockNetwork()
-
-    # Tạo các node (ví dụ 4 node)
-    nodes = [Node(node_id=i, network=network) for i in range(4)]
-
-    # Khởi tạo simulator chạy mock
-    sim = Simulator(network=network, nodes=nodes, config_path=config_path)
-
-    # Chạy mô phỏng
+    # Simulator now initializes everything internally
+    sim = Simulator(config_path=config_path, output_file=sys.stdout)
     sim.run()
 
 if __name__ == "__main__":

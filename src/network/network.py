@@ -34,12 +34,17 @@ class ScheduledDelivery:
 class Node(Protocol):
     """
     Interface đơn giản cho Node:
-    chỉ cần có .node_id và .receive(message)
+    chỉ cần có .node_id và .receive(message, sim_time)
     """
     node_id: str
 
-    def receive(self, message: Message) -> None:
+    def receive(self, message: Message, sim_time: float) -> None:
         ...
+
+# ... (inside Network.deliver_next)
+
+        node.receive(msg, t)
+        return t
 
 
 class Network:
@@ -321,5 +326,5 @@ class Network:
             },
         )
 
-        node.receive(msg)
+        node.receive(msg, t)
         return t
