@@ -1,4 +1,4 @@
-
+![Kết quả mô phỏng](https://user-images.githubusercontent.com/45159366/123559327-2ac76c00-d750-11eb-8507-6f2a81724412.png)
 ## Thành viên thực hiện
 
 | STT | MSSV | Họ và Tên |
@@ -199,3 +199,4 @@ Hệ thống hoạt động ổn định và chính xác trong tất cả các k
 
 - **Môn học**: Blockchain và ứng dụng - HCMUS
 - **Lab**: 01
+
