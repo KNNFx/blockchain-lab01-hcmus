@@ -5,7 +5,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from consensus.vote import Vote, PHASE_PREVOTE, PHASE_PRECOMMIT, verify_vote, build_vote
-from mock.mock_block import MockBlockLayer
+from blocklayer import validate_block
+from core.state import State
 
 
 class VotePool:
@@ -148,8 +149,8 @@ class ConsensusEngine:
         self.my_prevote: Optional[str] = None
         self.my_precommit: Optional[str] = None
         
-        #Block Layer (Mock)
-        self.block_layer = MockBlockLayer()
+        #Parent tracking for validation
+        self.parent_state: Optional[State] = None
 
 
     def on_receive_block(self, block) -> Optional[Vote]:
@@ -176,7 +177,12 @@ class ConsensusEngine:
 
         #5. Nếu chưa prevote -> Validate và tạo Prevote
         if self.my_prevote is None:
-            if self.block_layer.validate_block(block):
+            # Get parent block for validation
+            parent_block = self.get_latest_finalized()
+            # Use empty state if no parent (genesis case)
+            parent_state = self.parent_state if self.parent_state else State()
+            
+            if validate_block(block, parent_block, parent_state):
                 # Prevote logic with locking consideration
                 vote_for = None
                 
