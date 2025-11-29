@@ -51,12 +51,24 @@ class Node:
             # Looking at ConsensusEngine, it expects 'block'. 
             # Let's assume payload is the Block object.
             block: Block = message.payload
+            
+            # Verify signature
+            if not block.verify_signature():
+                # print(f"[Node {self.node_id}] Invalid block signature")
+                return
+
             vote = self.consensus.on_receive_block(block)
             if vote:
                 self.broadcast_vote(vote, sim_time)
 
         elif message.msg_type == MessageType.VOTE:
             vote = message.payload
+            
+            # Verify signature
+            if not vote.verify():
+                # print(f"[Node {self.node_id}] Invalid vote signature")
+                return
+
             vote_response = self.consensus.on_receive_vote(vote)
             if vote_response:
                 self.broadcast_vote(vote_response, sim_time)
