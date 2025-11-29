@@ -5,7 +5,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from consensus.vote import Vote, PHASE_PREVOTE, PHASE_PRECOMMIT, verify_vote, build_vote
-from blocklayer import validate_block
+from blocklayer.block import validate_block
 from core.state import State
 
 
@@ -117,13 +117,15 @@ class ConsensusEngine:
         total_validators: int,
         validator_index: Optional[int] = None,
         on_finalize_callback: Optional[Callable] = None,
-        on_ask_for_block: Optional[Callable] = None
+        on_ask_for_block: Optional[Callable] = None,
+        block_validator: Optional[Callable] = None
     ):
         self.validator_keypair = validator_keypair
         self.total_validators = total_validators
         self.validator_index = validator_index  # Set during initialization
         self.on_finalize_callback = on_finalize_callback
         self.on_ask_for_block = on_ask_for_block
+        self.block_validator = block_validator
         
         #State
         self.current_height = 0
@@ -283,6 +285,12 @@ class ConsensusEngine:
         
         if self.on_finalize_callback:
             self.on_finalize_callback(block)
+        
+        # Update parent_state: apply block transactions to current state
+        if self.parent_state is None:
+            self.parent_state = State()
+        for tx in block.txs:
+            self.parent_state.apply_tx(tx)
         
         # Reset state cho height mới và thu thập votes từ buffered blocks/votes
         return self._advance_to_next_height(height + 1)
