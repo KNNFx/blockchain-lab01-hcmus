@@ -5,9 +5,9 @@
 | :-: | :--: | :--- |
 | 1 | 21120268 | Nguyễn Việt Khánh |
 | 2 | 21120224 | Lều Huy Đức |
-| 3 | 21120003 |21120004|
-| 4 | 21120004 |21120004|
-| 5 | 21120004 |21120004 |
+| 3 | 22120382 | Nguyễn Anh Trí |
+| 4 | 21120004 | [Tên thành viên] |
+| 5 | 21120005 | [Tên thành viên] |
 # Blockchain Lab 01 - HCMUS
 
 Dự án này là một mô phỏng blockchain được phát triển cho môn học Blockchain và ứng dụng tại Trường Đại học Khoa học Tự nhiên, ĐHQG-HCM (HCMUS). Nó cung cấp một framework để mô phỏng mạng lưới blockchain, bao gồm tương tác giữa các node, cơ chế đồng thuận và lan truyền khối.
@@ -45,6 +45,65 @@ blockchain-lab01-hcmus/
 ├── requirements.txt        # Các thư viện Python phụ thuộc
 └── README.md               # Tài liệu dự án
 ```
+
+## Cấu trúc dữ liệu
+
+### Kiến trúc Node-Simulator
+
+`Node_sim` mô phỏng hành vi 2 lớp chính:
+`Node`: đại diện cho một validator, duy trì trạng thái cục bộ và tham gia đồng thuận; `Simulator`: điều phối toàn bộ mô phỏng theo cơ chế sự kiện rời rạc.
+
+#### 1. Lớp Node
+
+*   `node_id`: Mã định danh duy nhất.
+*   `keypair`: Cặp khóa ký block và vote.
+*   `validators`: Danh sách public key của các validator.
+*   `state`: Trạng thái ledger cục bộ.
+*   `blockchain`: Tập block đã finalize.
+*   `mempool`: Danh sách giao dịch chờ xử lý.
+*   `consensus`: Bộ máy đồng thuận (Tendermint-like).
+*   `network`: Lớp giao tiếp mạng.
+
+**Vai trò:**
+*   Xử lý thông điệp mạng (`TX`, `BLOCK`, `VOTE`).
+*   Sử dụng `ConsensusEngine` để bỏ phiếu và khóa block.
+*   Đề xuất block mới theo cơ chế *round-robin proposer*.
+*   Duy trì blockchain cục bộ nhất quán với các node khác.
+
+#### 2. Lớp Simulator
+
+*   `config`: Cấu hình hệ thống (YAML).
+*   `rng`: Bộ sinh số ngẫu nhiên (đảm bảo *determinism*).
+*   `logger`: Ghi log sự kiện dạng JSON Lines.
+*   `network`: Lớp mô phỏng mạng (queue, delay).
+*   `nodes`: Danh sách Node trong mô phỏng.
+*   `validators`: Danh sách public key khởi tạo.
+
+**Vai trò:**
+*   Khởi tạo môi trường mô phỏng và các node.
+*   Thực thi vòng lặp sự kiện (*event-driven loop*).
+*   Điều phối thời gian và chuyển thông điệp giữa các node.
+*   Kiểm soát điều kiện dừng (số block finalize / timeout).
+
+### Liên kết với các layer
+
+`Node_sim` đóng vai trò trung tâm và kết nối các thành phần khác của hệ thống.
+
+#### Với Network layer
+Node gửi thông điệp qua `network.send()`; Cung cấp hàm `receive()` để network gọi khi có tin nhắn tới.
+**Vai trò:** kiểm thử tính bền vững của giao thức
+
+#### Với Consensus layer
+Khởi tạo `ConsensusEngine` và ủy quyền xử lý logic đồng thuận; Cập nhật blockchain và state khi một block được finalize
+**Vai trò:** Node đóng vai trò adapter giữa dữ liệu blockchain và logic đồng thuận.
+
+#### Với Block & Core layer
+*   Blocklayer cung cấp cấu trúc `Block`, `BlockHeader`, `SignedTx`.
+*   Core cung cấp `State`, `KeyPair`, xác thực chữ ký và logic xử lý giao dịch.
+**Vai trò:** Tạo block mới; Xác thực block nhận được; Cập nhật trạng thái ledger
+
+
+
 
 ## Cài đặt
 
@@ -206,6 +265,7 @@ Hệ thống hoạt động ổn định và chính xác trong tất cả các k
 
 - **Môn học**: Blockchain và ứng dụng - HCMUS
 - **Lab**: 01
+
 
 
 
