@@ -11,6 +11,7 @@ class MessageType(Enum):
     BLOCK_HEADER = auto()
     BLOCK_BODY = auto()
     VOTE = auto()
+    GET_BLOCK = auto()
 
 
 @dataclass

@@ -5,6 +5,7 @@ from network.network import Node as NetworkNode
 from network.messages import Message, MessageType
 from consensus.consensus import ConsensusEngine
 from blocklayer.block import Block, build_block, validate_block
+from blocklayer.ledger import Ledger
 from core.state import State
 from core.crypto_layer import KeyPair
 from core.types_tx import SignedTx
@@ -17,9 +18,11 @@ class Node:
         self.validators = validators
         self.gossip_k = gossip_k  # Number of peers to gossip to
         
-        # Initialize State and Blockchain
+        # Initialize Ledger to manage blocks and states
+        self.ledger = Ledger()
+        
+        # For backward compatibility, keep references to current state
         self.state = State() # Genesis state
-        self.blockchain: List[Block] = [] # Genesis block is usually implicit or added explicitly
         
         # Initialize Consensus Engine
         self.consensus = ConsensusEngine(
@@ -27,6 +30,7 @@ class Node:
             total_validators=len(validators),
             validator_index=validators.index(self.keypair.pubkey()) if self.keypair.pubkey() in validators else None,
             on_finalize_callback=self.on_finalize,
+            on_ask_for_block=self.request_missing_block,
             block_validator=self.validate_block_callback
         )
         
@@ -73,44 +77,73 @@ class Node:
             vote_response = self.consensus.on_receive_vote(vote)
             if vote_response:
                 self.broadcast_vote(vote_response, sim_time)
+        
+        elif message.msg_type == MessageType.GET_BLOCK:
+            # Another node is requesting a block by hash
+            block_hash = message.payload
+            self.handle_block_request(block_hash, message.from_id, sim_time)
+        
+        elif message.msg_type == MessageType.BLOCK_BODY:
+            # Received a block in response to our GET_BLOCK request
+            block: Block = message.payload
+            
+            # Verify signature
+            if not block.verify_signature():
+                return
+            
+            # Feed to consensus (it will check if this is the missing block)
+            vote = self.consensus.on_receive_block(block)
+            if vote:
+                self.broadcast_vote(vote, sim_time)
 
     def validate_block_callback(self, block: Block) -> bool:
         """Callback for ConsensusEngine to validate a block."""
-        # Find parent block
-        parent_block = None
-        parent_state = self.state # Default to current state (assuming extends tip)
+        # Get latest finalized block and state from ledger
+        latest = self.ledger.latest_finalized()
         
-        if self.blockchain:
-            if block.header.parent_hash == self.blockchain[-1].block_hash():
-                parent_block = self.blockchain[-1]
-                parent_state = self.state
+        if latest:
+            parent_block, parent_state = latest
+            # Check if this block extends the current tip
+            if block.header.parent_hash == parent_block.block_hash():
+                return validate_block(block, parent_block, parent_state)
             else:
-                # If it's not extending the tip, we might reject it for this simple sim
-                # or we'd need to look back in history.
-                # For now, reject forks that are not immediate extensions
-                # UNLESS it's genesis (parent_hash all zeros)
-                if block.header.height == 0 and not self.blockchain:
-                     pass # Genesis case
-                else:
-                     # print(f"[Node {self.node_id}] Rejecting block {block.header.height} (parent mismatch)")
-                     return False
-        elif block.header.height > 0:
-             # We have no blocks but this is not height 0
-             return False
-
-        return validate_block(block, parent_block, parent_state)
+                # For simplicity, reject forks that don't extend the tip
+                return False
+        else:
+            # No blocks yet - this should be genesis (height 0)
+            if block.header.height == 0:
+                return validate_block(block, None, State())
+            else:
+                return False
 
     def on_finalize(self, block: Block):
         """Callback when a block is finalized."""
         # print(f"[Node {self.node_id}] Finalized block {block.header.height}: {block.block_hash()}")
-        self.blockchain.append(block)
         
-        # Update state
+        # Apply transactions to create new state
+        new_state = State()
+        
+        # Start from parent state if exists
+        latest = self.ledger.latest_finalized()
+        if latest:
+            _, parent_state = latest
+            new_state = State()
+            # Copy parent state data
+            for key, value in parent_state.data.items():
+                new_state.data[key] = value
+        
+        # Apply all transactions in this block
         for tx in block.txs:
-            self.state.apply_tx(tx)
+            new_state.apply_tx(tx)
             # Remove from mempool
             if tx in self.mempool:
                 self.mempool.remove(tx)
+        
+        # Add block and its resulting state to ledger
+        self.ledger.add_block(block, new_state)
+        
+        # Update current state reference for backward compatibility
+        self.state = new_state
 
     def propose_block(self, sim_time: float):
         """Propose a new block if it's our turn."""
@@ -124,12 +157,18 @@ class Node:
         if self.consensus.should_propose(height, round):
             # print(f"[Node {self.node_id[:8]}] Proposing block for H={height} R={round}")
             
-            parent_block = self.blockchain[-1] if self.blockchain else None
+            # Get parent block and state from ledger
+            latest = self.ledger.latest_finalized()
+            if latest:
+                parent_block, parent_state = latest
+            else:
+                parent_block = None
+                parent_state = State()
             
             # Build block
             block = build_block(
                 parent_block=parent_block,
-                parent_state=self.state,
+                parent_state=parent_state,
                 txs=self.mempool[:], # Include all txs
                 keypair=self.keypair
             )
@@ -178,4 +217,60 @@ class Node:
             height=vote.height
         )
         self.broadcast(msg, sim_time)
+    
+    def request_missing_block(self, block_hash: str):
+        """
+        Callback được gọi bởi ConsensusEngine khi thiếu block data.
+        Broadcast GET_BLOCK request để yêu cầu peers gửi block.
+        """
+        # In a real system, we might track which peers likely have the block
+        # For simplicity, broadcast to all via gossip
+        # Note: sim_time is not available here, using 0.0 as placeholder
+        # The network will use current simulation time anyway
+        msg = Message(
+            msg_id=0,
+            from_id=self.node_id,
+            to_id="BROADCAST",
+            msg_type=MessageType.GET_BLOCK,
+            payload=block_hash,
+            height=None
+        )
+        # Use gossip to request from multiple peers
+        self.network.gossip_send(msg, 0.0, self.gossip_k, exclude_nodes=[self.node_id])
+    
+    def handle_block_request(self, block_hash: str, requester_id: str, sim_time: float):
+        """
+        Handle GET_BLOCK request from another node.
+        Send BLOCK_BODY response if we have the block.
+        """
+        # Check if we have this block in our ledger
+        # Search through all heights
+        for height in self.ledger.blocks.keys():
+            block = self.ledger.blocks[height]
+            if block.block_hash() == block_hash:
+                # Found the block, send it back
+                msg = Message(
+                    msg_id=0,
+                    from_id=self.node_id,
+                    to_id=requester_id,
+                    msg_type=MessageType.BLOCK_BODY,
+                    payload=block,
+                    height=block.header.height
+                )
+                # Send directly to requester (not gossip)
+                self.network.send(msg, sim_time)
+                return
+        
+        # Block not found - do nothing (requester will timeout or retry)
+    
+    @property
+    def blockchain(self) -> List[Block]:
+        """
+        Backward compatibility property to get list of blocks.
+        Returns blocks sorted by height.
+        """
+        if not self.ledger.blocks:
+            return []
+        heights = sorted(self.ledger.blocks.keys())
+        return [self.ledger.blocks[h] for h in heights]
 
