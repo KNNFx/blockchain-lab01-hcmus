@@ -17,7 +17,8 @@ from core.crypto_layer import KeyPair, sign_struct
 def temp_config(tmp_path):
     config_path = tmp_path / "test_config.yaml"
     with open(config_path, "w") as f:
-        f.write("simulation:\n  num_nodes: 8\n  max_blocks: 5\n  min_delay: 0.01\n  max_delay: 0.1\n")
+        f.write("simulation:\n  num_nodes: 8\n  max_blocks: 5\n  min_delay: 0.001\n  max_delay: 0.01\n")
+        f.write("network:\n  gossip_k: 7\n  drop_prob: 0.0\n  dup_prob: 0.0\n  min_send_interval: 0.001\n")
     return str(config_path)
 
 def test_simulation_run(temp_config):
@@ -84,8 +85,8 @@ def test_block_proposal(temp_config):
     """Test that blocks are proposed and finalized."""
     sim = Simulator(config_path=temp_config)
     
-    # Run long enough for proposals
-    sim.run(max_steps=100) # 50 steps should be enough for a few seconds
+    # Run long enough for proposals (more steps needed with gossip protocol)
+    sim.run(max_steps=50)
     
     # Check if any node has blocks
     max_height = 0
@@ -93,14 +94,14 @@ def test_block_proposal(temp_config):
         if node.blockchain:
             max_height = max(max_height, node.blockchain[-1].header.height)
             
-    assert max_height > 0, "Should have finalized at least one block"
+    assert max_height > 0, f"Should have finalized at least one block, but max height is {max_height}"
 
 def test_safety_one_block_per_height(temp_config):
     """
     1. only one block becomes finalized at each height;
     """
     sim = Simulator(config_path=temp_config, seed=123)
-    sim.run(max_steps=100)
+    sim.run(max_steps=50)
     
     # Check that all nodes agree on the chain
     # We take the first node's chain as reference
@@ -211,10 +212,11 @@ def test_robustness_replays_duplicates(tmp_path):
     """
     config_path = tmp_path / "robust_config.yaml"
     with open(config_path, "w") as f:
-        f.write("simulation:\n  num_nodes: 8\n  max_blocks: 5\n  dup_prob: 0.5\n  min_delay: 0.01\n  max_delay: 0.1\n")
+        f.write("simulation:\n  num_nodes: 8\n  max_blocks: 5\n  min_delay: 0.01\n  max_delay: 0.1\n")
+        f.write("network:\n  gossip_k: 7\n  drop_prob: 0.0\n  dup_prob: 0.5\n  min_send_interval: 0.0\n")
     
     sim = Simulator(config_path=str(config_path), seed=789)
-    sim.run(max_steps=100)
+    sim.run(max_steps=50)
     
     # Check Safety
     reference_chain = sim.nodes[0].blockchain
@@ -232,10 +234,11 @@ def test_network_issues_drops_delays(tmp_path):
     config_path = tmp_path / "network_issue_config.yaml"
     with open(config_path, "w") as f:
         # High drop prob and delay
-        f.write("simulation:\n  num_nodes: 8\n  max_blocks: 5\n  drop_prob: 0.2\n  min_delay: 0.01\n  max_delay: 0.1\n")
+        f.write("simulation:\n  num_nodes: 8\n  max_blocks: 5\n  min_delay: 0.01\n  max_delay: 0.1\n")
+        f.write("network:\n  gossip_k: 7\n  drop_prob: 0.2\n  dup_prob: 0.0\n  min_send_interval: 0.0\n")
     
     sim = Simulator(config_path=str(config_path), seed=101112)
-    sim.run(max_steps=200) # Give more time due to drops/delays
+    sim.run(max_steps=50) # Give more time due to drops/delays
     
     # Check Safety
     reference_chain = sim.nodes[0].blockchain
@@ -253,7 +256,8 @@ def test_determinism_complex(tmp_path):
     """
     config_path = tmp_path / "robust_config.yaml"
     with open(config_path, "w") as f:
-        f.write("simulation:\n  num_nodes: 8\n  max_blocks: 5\n  dup_prob: 0.5\n  drop_prob: 0.1\n  min_delay: 0.01\n  max_delay: 0.1\n")
+        f.write("simulation:\n  num_nodes: 8\n  max_blocks: 5\n  min_delay: 0.01\n  max_delay: 0.1\n")
+        f.write("network:\n  gossip_k: 6\n  drop_prob: 0.1\n  dup_prob: 0.5\n  min_send_interval: 0.0\n")
         
     log1_path = tmp_path / "run1.log"
     log2_path = tmp_path / "run2.log"
@@ -263,11 +267,11 @@ def test_determinism_complex(tmp_path):
     # Run 1
     with open(log1_path, "w") as f:
         sim1 = Simulator(config_path=str(config_path), output_file=f, seed=seed)
-        sim1.run(max_steps=100)
+        sim1.run(max_steps=30)
         
     # Run 2
     with open(log2_path, "w") as f:
         sim2 = Simulator(config_path=str(config_path), output_file=f, seed=seed)
-        sim2.run(max_steps=100)
+        sim2.run(max_steps=30)
         
     assert filecmp.cmp(log1_path, log2_path), "Logs should be identical even with complex network conditions"

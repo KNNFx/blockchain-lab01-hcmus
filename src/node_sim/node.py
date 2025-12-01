@@ -122,7 +122,7 @@ class Node:
         round = self.consensus.current_round
         
         if self.consensus.should_propose(height, round):
-            # print(f"[Node {self.node_id}] Proposing block for H={height} R={round}")
+            # print(f"[Node {self.node_id[:8]}] Proposing block for H={height} R={round}")
             
             parent_block = self.blockchain[-1] if self.blockchain else None
             
