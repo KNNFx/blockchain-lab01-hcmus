@@ -49,16 +49,8 @@ blockchain-lab01-hcmus/
 
 ## Cài đặt
 
-1.  Clone repository:
-    ```bash
-    git clone <repository_url>
-    cd blockchain-lab01-hcmus
-    ```
-
+1.  Clone repository.
 2.  Cài đặt các thư viện phụ thuộc:
-    ```bash
-    pip install -r requirements.txt
-    ```
 
 ## Hướng dẫn Sử dụng
 
@@ -207,6 +199,7 @@ Hệ thống hoạt động ổn định và chính xác trong tất cả các k
 
 - **Môn học**: Blockchain và ứng dụng - HCMUS
 - **Lab**: 01
+
 
 
 
