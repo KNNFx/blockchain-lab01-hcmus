@@ -45,7 +45,7 @@ blockchain-lab01-hcmus/
 ├── requirements.txt        # Các thư viện Python phụ thuộc
 └── README.md               # Tài liệu dự án
 ```
-![System Diagram](system diagram.png)
+![System Diagram](https://github.com/KNNFx/blockchain-lab01-hcmus/blob/main/system%20diagram.png)
 
 ## Cài đặt
 
@@ -207,6 +207,7 @@ Hệ thống hoạt động ổn định và chính xác trong tất cả các k
 
 - **Môn học**: Blockchain và ứng dụng - HCMUS
 - **Lab**: 01
+
 
 
 
