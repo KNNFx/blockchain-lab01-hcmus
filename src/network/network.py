@@ -260,6 +260,55 @@ class Network:
                 },
             )
 
+    def gossip_send(self, msg: Message, now: float, gossip_k: int, exclude_nodes: Optional[List[str]] = None) -> None:
+        """
+        Gửi message tới k peers ngẫu nhiên (gossip strategy).
+        
+        :param msg: Message với from_id đã set, to_id sẽ bị ignore
+        :param now: Thời điểm hiện tại
+        :param gossip_k: Số lượng peers ngẫu nhiên để gửi
+        :param exclude_nodes: Danh sách node_id không gửi tới (ví dụ: chính node gửi)
+        """
+        sender = msg.from_id
+        exclude = exclude_nodes or []
+        
+        # Lấy danh sách tất cả nodes trừ sender và exclude list
+        all_peers = [nid for nid in self._nodes.keys() if nid != sender and nid not in exclude]
+        
+        if not all_peers:
+            return
+        
+        # Chọn k peers ngẫu nhiên (hoặc tất cả nếu số peers < k)
+        k = min(gossip_k, len(all_peers))
+        selected_peers = self._rng.sample(all_peers, k)
+        
+        # Log gossip event
+        self._logger.log_event(
+            sim_time=now,
+            node_id=sender,
+            event="GOSSIP",
+            height=msg.height,
+            msg_id=msg.msg_id,
+            extra={
+                "from": sender,
+                "msg_type": msg.msg_type.name,
+                "gossip_k": k,
+                "selected_peers": selected_peers,
+            },
+        )
+        
+        # Gửi message tới từng peer được chọn
+        for peer_id in selected_peers:
+            peer_msg = Message(
+                msg_id=msg.msg_id,
+                from_id=sender,
+                to_id=peer_id,
+                msg_type=msg.msg_type,
+                payload=msg.payload,
+                height=msg.height,
+            )
+            self.send(peer_msg, now)
+
     def has_pending_events(self) -> bool:
         """Kiểm tra còn event trong queue không."""
         return bool(self._queue)

@@ -4,3 +4,9 @@ simulation:
   chain_id: "test-chain-01"
   min_delay: 0.01
   max_delay: 0.1
+
+network:
+  gossip_k: 3  # Number of random peers to gossip to (instead of broadcast to all)
+  drop_prob: 0.05  # Probability of dropping a message
+  dup_prob: 0.02   # Probability of duplicating a message
+  min_send_interval: 0.001  # Minimum interval between sends from a node

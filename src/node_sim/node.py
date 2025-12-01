@@ -10,11 +10,12 @@ from core.crypto_layer import KeyPair
 from core.types_tx import SignedTx
 
 class Node:
-    def __init__(self, node_id: str, network, keypair: KeyPair, validators: List[str]):
+    def __init__(self, node_id: str, network, keypair: KeyPair, validators: List[str], gossip_k: int = 3):
         self.node_id = node_id # String ID for network
         self.network = network
         self.keypair = keypair
         self.validators = validators
+        self.gossip_k = gossip_k  # Number of peers to gossip to
         
         # Initialize State and Blockchain
         self.state = State() # Genesis state
@@ -152,31 +153,20 @@ class Node:
                 self.broadcast_vote(vote, sim_time)
 
     def broadcast(self, message: Message, sim_time: float):
-        """Helper to broadcast a message to all other validators."""
-        # In a real p2p, we gossip. Here we send to all known validators.
-        # We assume we know all validators from init.
+        """Helper to gossip a message to k random validators instead of broadcasting to all."""
+        # Use gossip strategy: send to k random peers instead of all validators
+        # This reduces network load while maintaining message propagation
         
-        for validator_pk in self.validators:
-            # Map pubkey to node_id?
-            # We initialized Node with node_id.
-            # But validators list contains pubkeys (from consensus).
-            # We need a mapping from pubkey to node_id.
-            # OR we assume node_id IS the pubkey?
-            # For simplicity, let's assume node_id == pubkey_hex.
-            
-            target_id = validator_pk
-            if target_id != self.node_id:
-                # Clone message for each recipient? Message is immutable dataclass so okay.
-                # But to_id needs to change.
-                new_msg = Message(
-                    msg_id=message.msg_id, # Should be unique per send? Network logs it.
-                    from_id=self.node_id,
-                    to_id=target_id,
-                    msg_type=message.msg_type,
-                    payload=message.payload,
-                    height=message.height
-                )
-                self.network.send(new_msg, sim_time)
+        msg = Message(
+            msg_id=message.msg_id,
+            from_id=self.node_id,
+            to_id="GOSSIP",  # Placeholder, will be set by network
+            msg_type=message.msg_type,
+            payload=message.payload,
+            height=message.height
+        )
+        
+        self.network.gossip_send(msg, sim_time, self.gossip_k, exclude_nodes=[self.node_id])
 
     def broadcast_vote(self, vote, sim_time: float):
         msg = Message(
