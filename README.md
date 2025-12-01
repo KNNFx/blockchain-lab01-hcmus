@@ -7,7 +7,7 @@
 | 2 | 21120224 | Lều Huy Đức |
 | 3 | 22120382 | Nguyễn Anh Trí |
 | 4 | 22120242 | Nguyễn Minh Nhã  |
-| 5 | 21120005 | [Tên thành viên] |
+| 5 | 22120050| Hồ Mạnh Đào |
 # Blockchain Lab 01 - HCMUS
 
 Dự án này là một mô phỏng blockchain được phát triển cho môn học Blockchain và ứng dụng tại Trường Đại học Khoa học Tự nhiên, ĐHQG-HCM (HCMUS). Nó cung cấp một framework để mô phỏng mạng lưới blockchain, bao gồm tương tác giữa các node, cơ chế đồng thuận và lan truyền khối.
@@ -207,6 +207,7 @@ Hệ thống hoạt động ổn định và chính xác trong tất cả các k
 
 - **Môn học**: Blockchain và ứng dụng - HCMUS
 - **Lab**: 01
+
 
 
 
